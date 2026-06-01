@@ -6,22 +6,52 @@
     <title>Hangman Portfolio</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        .letter-box { 
-            font-family: monospace; 
-            font-size: 2.5rem; 
-            letter-spacing: 5px; 
-            font-weight: bold;
+        /* --- BACKGROUND STYLE: NOTEBOOK GRAPH PAPER --- */
+        /* --- BACKGROUND STYLE: NOTEBOOK GRAPH PAPER --- */
+        .custom-bg {
+            background-color: #eef2f6; /* Changed from pure white to a slightly darker, cooler paper color */
+            
+            /* Creates the intersecting grid lines using CSS gradients */
+            background-image: 
+                linear-gradient(rgba(28, 126, 214, 0.15) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(28, 126, 214, 0.15) 1px, transparent 1px);
+            background-size: 30px 30px; 
+            color: #333333;
         }
-        /* Removed the used-letters-container style as it's no longer needed */
+
+        /* The custom ballpoint pen blue extracted from your image */
+        .sketch-blue {
+            color: #1971c2 !important; 
+        }
+
+        .letter-box { 
+            /* Added a slightly handwritten font stack to match the vibe */
+            font-family: 'Comic Sans MS', 'Chalkboard SE', monospace; 
+            font-size: 2.5rem; 
+            letter-spacing: 8px; 
+            font-weight: bold;
+            color: #1971c2; /* Dashes and letters are now pen blue */
+        }
+        
+        /* Lock screen height during gameplay */
+        .game-mode {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between; 
+            overflow: hidden; 
+        }
     </style>
 </head>
-<body class="bg-light text-center py-5">
-    <div class="container">
-        <h1 class="mb-2">Hangman Game</h1>
+
+<body class="custom-bg text-center {% if show_menu %}py-5{% else %}game-mode py-1{% endif %}">
+    
+    <div class="container d-flex flex-column justify-content-center h-100">
+        
+        <h1 class="{% if show_menu %}mb-4{% else %}mb-1 mt-2 fs-2{% endif %} fw-bold" style="color: #212529;">Hangman Game</h1>
 
         {% if show_menu %}
-            <p class="text-muted mb-5">Select a category to begin playing</p>
-            
+            <p class="sketch-blue mb-5 fs-5 fw-bold mx-auto">Select a category to begin playing</p>            
             <form action="/start" method="POST" class="d-flex flex-column align-items-center gap-3">
                 <button type="submit" name="category" value="World Countries" class="btn btn-primary btn-lg w-50 py-3 fs-4 shadow-sm">🌍 World Countries</button>
                 <button type="submit" name="category" value="Clash Royale" class="btn btn-danger btn-lg w-50 py-3 fs-4 shadow-sm">👑 Clash Royale Cards</button>
@@ -30,74 +60,75 @@
             </form>
 
         {% else %}
-            <div class="d-flex justify-content-center align-items-center gap-4 mb-4">
-                <h5 class="text-muted mb-0">Category: <span class="text-primary fw-bold">{{ category }}</span></h5>
-                <h5 class="text-muted mb-0">🔥 Streak: <span class="text-warning fw-bold fs-4">{{ streak }}</span></h5>
+            
+            <div class="d-flex justify-content-center align-items-center gap-4 mb-2 mt-1">
+                <h5 class="mb-0 fw-bold" style="color: #495057;">Category: <span class="sketch-blue fs-4">{{ category }}</span></h5>
+                <h5 class="mb-0 fw-bold" style="color: #495057;">🔥 Streak: <span class="text-warning fs-4">{{ streak }}</span></h5>
             </div>
             
-            <div class="mb-4">
-                <img src="/static/images/hangman{{ mistakes }}.png" alt="Hangman Status" style="max-height: 300px; width: auto;">
+            <div class="mb-3">
+                <img src="/static/images/hangman{{ mistakes }}.png" alt="Hangman Status" style="max-height: 350px; width: auto;">
             </div>
 
-            <p class="fs-4">Mistakes: <span class="badge bg-danger">{{ mistakes }} / 10</span></p>
+            <p class="fs-6 mb-2 fw-bold" style="color: #495057;">Mistakes: <span class="badge bg-danger fs-6">{{ mistakes }} / 10</span></p>
 
-            <div class="letter-box mb-4">
+            <div class="letter-box mb-2">
                 {{ display | safe }} 
             </div>
 
-            {% if game_over %}
-                <div class="alert {{ 'alert-success' if win else 'alert-danger' }}">
-                    {% if win %}
-                        <h2>🎉 You Won! 🎉</h2>
-                    {% else %}
-                        <h2>💀 Game Over! 💀</h2>
-                        <p class="fs-5">The answer was: <strong>{{ secret_word | title }}</strong></p>
-                    {% endif %}
-                </div>
-                
-                <a href="/reset" class="btn btn-primary btn-lg mt-3">Play Again</a>
+            <div class="mt-3">
+                {% if game_over %}
+                    <div class="alert {{ 'alert-success border-success' if win else 'alert-danger border-danger' }} bg-white py-2 mb-3 shadow-sm mx-auto" style="max-width: 400px; border-width: 2px;">
+                        {% if win %}
+                            <h3 class="mb-0 text-success">🎉 You Won! 🎉</h3>
+                        {% else %}
+                            <h3 class="mb-1 text-danger">💀 Game Over! 💀</h3>
+                            <p class="fs-6 mb-0 text-dark">The answer was: <strong>{{ secret_word | title }}</strong></p>
+                        {% endif %}
+                    </div>
+                    
+                    <a href="/reset" class="btn btn-primary btn-lg mt-2 px-5 shadow">Play Again</a>
 
-            {% else %}
-                <div class="mt-4">
+                {% else %}
                     <form action="/guess" method="POST">
                         
-                        <div class="d-flex justify-content-center flex-wrap gap-2 mb-2">
+                        <div class="d-flex justify-content-center flex-wrap gap-1 mb-2">
                             {% for char in 'qwertyuiop' %}
                                 <button type="submit" name="letter" value="{{ char }}" 
-                                        class="btn btn-{{ 'secondary disabled' if char in guessed_letters else 'outline-primary' }} fw-bold fs-5 shadow-sm" 
-                                        style="width: 45px; height: 50px;">
+                                        class="btn btn-{{ 'secondary disabled opacity-50 border-0' if char in guessed_letters else 'outline-primary bg-white sketch-blue border-2' }} fw-bold fs-5 shadow-sm p-0" 
+                                        style="width: 42px; height: 48px;">
                                     {{ char | upper }}
                                 </button>
                             {% endfor %}
                         </div>
                         
-                        <div class="d-flex justify-content-center flex-wrap gap-2 mb-2">
+                        <div class="d-flex justify-content-center flex-wrap gap-1 mb-2">
                             {% for char in 'asdfghjkl' %}
                                 <button type="submit" name="letter" value="{{ char }}" 
-                                        class="btn btn-{{ 'secondary disabled' if char in guessed_letters else 'outline-primary' }} fw-bold fs-5 shadow-sm" 
-                                        style="width: 45px; height: 50px;">
+                                        class="btn btn-{{ 'secondary disabled opacity-50 border-0' if char in guessed_letters else 'outline-primary bg-white sketch-blue border-2' }} fw-bold fs-5 shadow-sm p-0" 
+                                        style="width: 42px; height: 48px;">
                                     {{ char | upper }}
                                 </button>
                             {% endfor %}
                         </div>
                         
-                        <div class="d-flex justify-content-center flex-wrap gap-2 mb-4">
+                        <div class="d-flex justify-content-center flex-wrap gap-1 mb-3">
                             {% for char in 'zxcvbnm' %}
                                 <button type="submit" name="letter" value="{{ char }}" 
-                                        class="btn btn-{{ 'secondary disabled' if char in guessed_letters else 'outline-primary' }} fw-bold fs-5 shadow-sm" 
-                                        style="width: 45px; height: 50px;">
+                                        class="btn btn-{{ 'secondary disabled opacity-50 border-0' if char in guessed_letters else 'outline-primary bg-white sketch-blue border-2' }} fw-bold fs-5 shadow-sm p-0" 
+                                        style="width: 42px; height: 48px;">
                                     {{ char | upper }}
                                 </button>
                             {% endfor %}
                         </div>
 
                     </form>
-                </div>
-                
-                <div class="mt-2">
-                    <a href="/reset" class="btn btn-outline-secondary btn-sm">Main Menu</a>
-                </div>
-            {% endif %}
+                    
+                    <div class="mt-2 mb-2">
+                        <a href="/reset" class="btn btn-outline-dark bg-white btn-sm fw-bold shadow-sm">Main Menu</a>
+                    </div>
+                {% endif %}
+            </div>
         {% endif %}
     </div>
 
@@ -110,7 +141,6 @@
             let audioPlayer = document.getElementById("gameSound");
             let soundType = "{{ sound_to_play }}";
             let playCount = 1; 
-            
             let maxPlays = (soundType === 'lose') ? 2 : 1;
 
             audioPlayer.onended = function() {
