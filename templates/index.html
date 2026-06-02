@@ -6,129 +6,170 @@
     <title>Hangman Portfolio</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        /* --- BACKGROUND STYLE: NOTEBOOK GRAPH PAPER --- */
-        /* --- BACKGROUND STYLE: NOTEBOOK GRAPH PAPER --- */
-        .custom-bg {
-            background-color: #eef2f6; /* Changed from pure white to a slightly darker, cooler paper color */
-            
-            /* Creates the intersecting grid lines using CSS gradients */
-            background-image: 
-                linear-gradient(rgba(28, 126, 214, 0.15) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(28, 126, 214, 0.15) 1px, transparent 1px);
-            background-size: 30px 30px; 
-            color: #333333;
-        }
-
-        /* The custom ballpoint pen blue extracted from your image */
-        .sketch-blue {
-            color: #1971c2 !important; 
-        }
-
         .letter-box { 
-            /* Added a slightly handwritten font stack to match the vibe */
-            font-family: 'Comic Sans MS', 'Chalkboard SE', monospace; 
-            font-size: 2.5rem; 
-            letter-spacing: 8px; 
+            font-family: monospace; 
+            font-size: 2rem; 
+            letter-spacing: 5px; 
             font-weight: bold;
-            color: #1971c2; /* Dashes and letters are now pen blue */
+            color: #f8fafc; 
         }
-        
-        /* Lock screen height during gameplay */
         .game-mode {
             min-height: 100vh;
             display: flex;
             flex-direction: column;
-            justify-content: space-between; 
+            justify-content: center;
             overflow: hidden; 
         }
+        .custom-bg {
+            background-color: #0f172a; 
+            color: #f8fafc;
+        }
+        .text-muted { color: #94a3b8 !important; }
+        
+        /* Spinner styles */
+        #loading-screen { display: none; }
     </style>
 </head>
 
-<body class="custom-bg text-center {% if show_menu %}py-5{% else %}game-mode py-1{% endif %}">
+<body class="custom-bg text-center {% if show_menu %}py-5{% else %}game-mode py-2{% endif %}">
     
-    <div class="container d-flex flex-column justify-content-center h-100">
-        
-        <h1 class="{% if show_menu %}mb-4{% else %}mb-1 mt-2 fs-2{% endif %} fw-bold" style="color: #212529;">Hangman Game</h1>
+    <div class="container">
+        <h1 class="{% if show_menu %}mb-4{% else %}mb-2 fs-2{% endif %}">Hangman Game</h1>
 
         {% if show_menu %}
-            <p class="sketch-blue mb-5 fs-5 fw-bold mx-auto">Select a category to begin playing</p>            
-            <form action="/start" method="POST" class="d-flex flex-column align-items-center gap-3">
-                <button type="submit" name="category" value="World Countries" class="btn btn-primary btn-lg w-50 py-3 fs-4 shadow-sm">🌍 World Countries</button>
-                <button type="submit" name="category" value="Clash Royale" class="btn btn-danger btn-lg w-50 py-3 fs-4 shadow-sm">👑 Clash Royale Cards</button>
-                <button type="submit" name="category" value="Periodic Table" class="btn btn-info text-white btn-lg w-50 py-3 fs-4 shadow-sm">🧪 Periodic Table</button>
-                <button type="submit" name="category" value="Cricket Legends" class="btn btn-success btn-lg w-50 py-3 fs-4 shadow-sm">🏏 Cricket Legends</button>
-            </form>
+            
+            <div id="loading-screen" class="mt-5">
+                <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <h4 class="mt-3">AI is building your category...</h4>
+                <p class="text-muted">This may take a few seconds.</p>
+            </div>
+
+            <div id="main-menu-content">
+                <div class="row justify-content-center">
+                    
+                    <div class="col-md-6 mb-4">
+                        <div class="card bg-dark text-light shadow-sm border-secondary">
+                            <div class="card-body p-4">
+                                <h3>Create a Category</h3>
+                                <p class="text-muted small">Powered by AI</p>
+                                
+                                <form action="/generate" method="POST" id="generate-form">
+                                    <div class="mb-3">
+                                        <input type="text" name="category_name" class="form-control" placeholder="e.g., Space Exploration" required>
+                                    </div>
+                                    <div class="row g-2 mb-4">
+                                        <div class="col-4">
+                                            <label class="form-label small text-muted">Words</label>
+                                            <input type="number" name="word_count" class="form-control" value="100" min="10" max="200">
+                                        </div>
+                                        <div class="col-4">
+                                            <label class="form-label small text-muted">Min Length</label>
+                                            <input type="number" name="min_len" class="form-control" value="5" min="3" max="10">
+                                        </div>
+                                        <div class="col-4">
+                                            <label class="form-label small text-muted">Max Length</label>
+                                            <input type="number" name="max_len" class="form-control" value="20" min="5" max="30">
+                                        </div>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary w-100 fw-bold fs-5 shadow-sm">✨ Generate & Play</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="card bg-dark text-light shadow-sm border-secondary h-100">
+                            <div class="card-body p-4 text-start">
+                                <h3 class="text-center mb-4">Play Saved Categories</h3>
+                                
+                                {% if available_categories %}
+                                    <div class="d-flex flex-column gap-2">
+                                        {% for cat in available_categories %}
+                                            <div class="d-flex justify-content-between align-items-center bg-secondary bg-opacity-25 p-2 rounded">
+                                                <form action="/start" method="POST" class="m-0 flex-grow-1">
+                                                    <input type="hidden" name="category" value="{{ cat }}">
+                                                    <button type="submit" class="btn btn-link text-light text-decoration-none fw-bold p-0 text-start w-100">{{ cat }}</button>
+                                                </form>
+                                                <form action="/delete_category/{{ cat }}" method="POST" class="m-0">
+                                                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete Category">🗑️</button>
+                                                </form>
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+                                {% else %}
+                                    <p class="text-center text-muted mt-3">No categories saved yet. Generate one to get started!</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
 
         {% else %}
-            
-            <div class="d-flex justify-content-center align-items-center gap-4 mb-2 mt-1">
-                <h5 class="mb-0 fw-bold" style="color: #495057;">Category: <span class="sketch-blue fs-4">{{ category }}</span></h5>
-                <h5 class="mb-0 fw-bold" style="color: #495057;">🔥 Streak: <span class="text-warning fs-4">{{ streak }}</span></h5>
+            <div class="d-flex justify-content-center align-items-center gap-4 mb-2">
+                <h6 class="text-muted mb-0">Category: <span class="text-primary fw-bold">{{ category }}</span></h6>
+                <h6 class="text-muted mb-0">🔥 Streak: <span class="text-warning fw-bold fs-5">{{ streak }}</span></h6>
             </div>
             
-            <div class="mb-3">
-                <img src="/static/images/hangman{{ mistakes }}.png" alt="Hangman Status" style="max-height: 350px; width: auto;">
+            <div class="mb-2">
+                <img src="/static/images/hangman{{ mistakes }}.png" alt="Hangman Status" style="max-height: 250px; width: auto;">
             </div>
 
-            <p class="fs-6 mb-2 fw-bold" style="color: #495057;">Mistakes: <span class="badge bg-danger fs-6">{{ mistakes }} / 10</span></p>
+            <p class="fs-6 mb-2 text-muted">Mistakes: <span class="badge bg-danger">{{ mistakes }} / 10</span></p>
 
-            <div class="letter-box mb-2">
+            <div class="letter-box mb-3">
                 {{ display | safe }} 
             </div>
 
-            <div class="mt-3">
-                {% if game_over %}
-                    <div class="alert {{ 'alert-success border-success' if win else 'alert-danger border-danger' }} bg-white py-2 mb-3 shadow-sm mx-auto" style="max-width: 400px; border-width: 2px;">
-                        {% if win %}
-                            <h3 class="mb-0 text-success">🎉 You Won! 🎉</h3>
-                        {% else %}
-                            <h3 class="mb-1 text-danger">💀 Game Over! 💀</h3>
-                            <p class="fs-6 mb-0 text-dark">The answer was: <strong>{{ secret_word | title }}</strong></p>
-                        {% endif %}
-                    </div>
-                    
-                    <a href="/reset" class="btn btn-primary btn-lg mt-2 px-5 shadow">Play Again</a>
-
-                {% else %}
+            {% if game_over %}
+                <div class="alert {{ 'alert-success' if win else 'alert-danger' }} py-2 mb-2">
+                    {% if win %}
+                        <h3 class="mb-0">🎉 You Won! 🎉</h3>
+                    {% else %}
+                        <h3 class="mb-1">💀 Game Over! 💀</h3>
+                        <p class="fs-6 mb-0 text-dark">The answer was: <strong>{{ secret_word | title }}</strong></p>
+                    {% endif %}
+                </div>
+                <a href="/reset" class="btn btn-primary mt-2">Play Again</a>
+            {% else %}
+                <div class="mt-2">
                     <form action="/guess" method="POST">
-                        
-                        <div class="d-flex justify-content-center flex-wrap gap-1 mb-2">
+                        <div class="d-flex justify-content-center flex-wrap gap-2 mb-2">
                             {% for char in 'qwertyuiop' %}
                                 <button type="submit" name="letter" value="{{ char }}" 
-                                        class="btn btn-{{ 'secondary disabled opacity-50 border-0' if char in guessed_letters else 'outline-primary bg-white sketch-blue border-2' }} fw-bold fs-5 shadow-sm p-0" 
-                                        style="width: 42px; height: 48px;">
+                                        class="btn btn-{{ 'secondary disabled' if char in guessed_letters else 'outline-light' }} fw-bold fs-5 shadow-sm" 
+                                        style="width: 45px; height: 50px;">
                                     {{ char | upper }}
                                 </button>
                             {% endfor %}
                         </div>
-                        
-                        <div class="d-flex justify-content-center flex-wrap gap-1 mb-2">
+                        <div class="d-flex justify-content-center flex-wrap gap-2 mb-2">
                             {% for char in 'asdfghjkl' %}
                                 <button type="submit" name="letter" value="{{ char }}" 
-                                        class="btn btn-{{ 'secondary disabled opacity-50 border-0' if char in guessed_letters else 'outline-primary bg-white sketch-blue border-2' }} fw-bold fs-5 shadow-sm p-0" 
-                                        style="width: 42px; height: 48px;">
+                                        class="btn btn-{{ 'secondary disabled' if char in guessed_letters else 'outline-light' }} fw-bold fs-5 shadow-sm" 
+                                        style="width: 45px; height: 50px;">
                                     {{ char | upper }}
                                 </button>
                             {% endfor %}
                         </div>
-                        
-                        <div class="d-flex justify-content-center flex-wrap gap-1 mb-3">
+                        <div class="d-flex justify-content-center flex-wrap gap-2 mb-3">
                             {% for char in 'zxcvbnm' %}
                                 <button type="submit" name="letter" value="{{ char }}" 
-                                        class="btn btn-{{ 'secondary disabled opacity-50 border-0' if char in guessed_letters else 'outline-primary bg-white sketch-blue border-2' }} fw-bold fs-5 shadow-sm p-0" 
-                                        style="width: 42px; height: 48px;">
+                                        class="btn btn-{{ 'secondary disabled' if char in guessed_letters else 'outline-light' }} fw-bold fs-5 shadow-sm" 
+                                        style="width: 45px; height: 50px;">
                                     {{ char | upper }}
                                 </button>
                             {% endfor %}
                         </div>
-
                     </form>
-                    
-                    <div class="mt-2 mb-2">
-                        <a href="/reset" class="btn btn-outline-dark bg-white btn-sm fw-bold shadow-sm">Main Menu</a>
-                    </div>
-                {% endif %}
-            </div>
+                </div>
+                <div class="mt-1">
+                    <a href="/reset" class="btn btn-outline-secondary btn-sm">Main Menu</a>
+                </div>
+            {% endif %}
         {% endif %}
     </div>
 
@@ -136,13 +177,11 @@
         <audio id="gameSound" autoplay>
             <source src="/static/sounds/{{ sound_to_play }}.mp3" type="audio/mpeg">
         </audio>
-        
         <script>
             let audioPlayer = document.getElementById("gameSound");
             let soundType = "{{ sound_to_play }}";
             let playCount = 1; 
             let maxPlays = (soundType === 'lose') ? 2 : 1;
-
             audioPlayer.onended = function() {
                 if (playCount < maxPlays) {
                     playCount++;
@@ -150,6 +189,15 @@
                 }
             };
         </script>
+    {% endif %}
+
+    {% if show_menu %}
+    <script>
+        document.getElementById('generate-form').addEventListener('submit', function() {
+            document.getElementById('main-menu-content').style.display = 'none';
+            document.getElementById('loading-screen').style.display = 'block';
+        });
+    </script>
     {% endif %}
 </body>
 </html>
