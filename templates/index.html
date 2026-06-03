@@ -8,7 +8,7 @@
     <style>
         .letter-box { 
             font-family: monospace; 
-            font-size: 2rem; 
+            font-size: 2.5rem; /* Made the text slightly larger to match the bigger image */
             letter-spacing: 5px; 
             font-weight: bold;
             color: #f8fafc; 
@@ -17,24 +17,44 @@
             min-height: 100vh;
             display: flex;
             flex-direction: column;
-            justify-content: center;
-            overflow: hidden; 
+            justify-content: center; 
+            overflow-y: hidden; 
+            padding-top: 1rem;
+            padding-bottom: 1rem; 
         }
+        
+        /* Dark Graph Paper Notebook Design */
         .custom-bg {
-            background-color: #0f172a; 
+            background-color: #1a1a24; 
+            background-image: 
+                linear-gradient(rgba(255, 255, 255, 0.15) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.15) 1px, transparent 1px);
+            background-size: 30px 30px; 
             color: #f8fafc;
         }
+        
         .text-muted { color: #94a3b8 !important; }
         
-        /* Spinner styles */
         #loading-screen { display: none; }
+
+        /* Custom Dark Mode Alerts */
+        .alert-dark-success {
+            background-color: rgba(25, 135, 84, 0.2);
+            border: 1px solid rgba(25, 135, 84, 0.4);
+            color: #a3cfbb;
+        }
+        .alert-dark-danger {
+            background-color: rgba(220, 53, 69, 0.2);
+            border: 1px solid rgba(220, 53, 69, 0.4);
+            color: #ea868f;
+        }
     </style>
 </head>
 
 <body class="custom-bg text-center {% if show_menu %}py-5{% else %}game-mode py-2{% endif %}">
     
     <div class="container">
-        <h1 class="{% if show_menu %}mb-4{% else %}mb-2 fs-2{% endif %}">Hangman Game</h1>
+        <h1 class="{% if show_menu %}mb-4{% else %}mb-1 fs-2{% endif %}">Hangman Game</h1>
 
         {% if show_menu %}
             
@@ -108,68 +128,70 @@
                 </div>
             </div>
 
-        {% else %}
+            {% else %}
             <div class="d-flex justify-content-center align-items-center gap-4 mb-2">
                 <h6 class="text-muted mb-0">Category: <span class="text-primary fw-bold">{{ category }}</span></h6>
                 <h6 class="text-muted mb-0">🔥 Streak: <span class="text-warning fw-bold fs-5">{{ streak }}</span></h6>
             </div>
             
-            <div class="mb-2">
-                <img src="/static/images/hangman{{ mistakes }}.png" alt="Hangman Status" style="max-height: 250px; width: auto;">
+            <div>
+                <img src="/static/images/hangman{{ mistakes }}.png" alt="Hangman Status" style="max-height: 260px; width: auto; filter: invert(1) brightness(2);">
             </div>
 
-            <p class="fs-6 mb-2 text-muted">Mistakes: <span class="badge bg-danger">{{ mistakes }} / 10</span></p>
+            <div class="mt-2">
+                <p class="fs-6 mb-1 text-muted">Mistakes: <span class="badge bg-danger">{{ mistakes }} / 10</span></p>
 
-            <div class="letter-box mb-3">
-                {{ display | safe }} 
+                <div class="letter-box mb-2">
+                    {{ display | safe }} 
+                </div>
+
+                {% if game_over %}
+                    <div class="alert {{ 'alert-dark-success' if win else 'alert-dark-danger' }} py-2 mb-2 mx-auto" style="max-width: 600px;">
+                        {% if win %}
+                            <h3 class="mb-0">🎉 You Won! 🎉</h3>
+                        {% else %}
+                            <h3 class="mb-1">💀 Game Over! 💀</h3>
+                            <p class="fs-6 mb-0 text-light">The answer was: <strong>{{ secret_word | title }}</strong></p>
+                        {% endif %}
+                    </div>
+                    <a href="/reset" class="btn btn-primary mt-1">Play Again</a>
+                {% else %}
+                    <div>
+                        <form action="/guess" method="POST">
+                            <div class="d-flex justify-content-center flex-wrap gap-2 mb-1">
+                                {% for char in 'qwertyuiop' %}
+                                    <button type="submit" name="letter" value="{{ char }}" 
+                                            class="btn btn-{{ 'secondary disabled' if char in guessed_letters else 'outline-light' }} fw-bold fs-5 shadow-sm" 
+                                            style="width: 45px; height: 50px;">
+                                        {{ char | upper }}
+                                    </button>
+                                {% endfor %}
+                            </div>
+                            <div class="d-flex justify-content-center flex-wrap gap-2 mb-1">
+                                {% for char in 'asdfghjkl' %}
+                                    <button type="submit" name="letter" value="{{ char }}" 
+                                            class="btn btn-{{ 'secondary disabled' if char in guessed_letters else 'outline-light' }} fw-bold fs-5 shadow-sm" 
+                                            style="width: 45px; height: 50px;">
+                                        {{ char | upper }}
+                                    </button>
+                                {% endfor %}
+                            </div>
+                            <div class="d-flex justify-content-center flex-wrap gap-2 mb-2">
+                                {% for char in 'zxcvbnm' %}
+                                    <button type="submit" name="letter" value="{{ char }}" 
+                                            class="btn btn-{{ 'secondary disabled' if char in guessed_letters else 'outline-light' }} fw-bold fs-5 shadow-sm" 
+                                            style="width: 45px; height: 50px;">
+                                        {{ char | upper }}
+                                    </button>
+                                {% endfor %}
+                            </div>
+                        </form>
+                    </div>
+                    <div class="mt-1">
+                        <a href="/reset" class="btn btn-outline-secondary btn-sm">Main Menu</a>
+                    </div>
+                {% endif %}
             </div>
-
-            {% if game_over %}
-                <div class="alert {{ 'alert-success' if win else 'alert-danger' }} py-2 mb-2">
-                    {% if win %}
-                        <h3 class="mb-0">🎉 You Won! 🎉</h3>
-                    {% else %}
-                        <h3 class="mb-1">💀 Game Over! 💀</h3>
-                        <p class="fs-6 mb-0 text-dark">The answer was: <strong>{{ secret_word | title }}</strong></p>
-                    {% endif %}
-                </div>
-                <a href="/reset" class="btn btn-primary mt-2">Play Again</a>
-            {% else %}
-                <div class="mt-2">
-                    <form action="/guess" method="POST">
-                        <div class="d-flex justify-content-center flex-wrap gap-2 mb-2">
-                            {% for char in 'qwertyuiop' %}
-                                <button type="submit" name="letter" value="{{ char }}" 
-                                        class="btn btn-{{ 'secondary disabled' if char in guessed_letters else 'outline-light' }} fw-bold fs-5 shadow-sm" 
-                                        style="width: 45px; height: 50px;">
-                                    {{ char | upper }}
-                                </button>
-                            {% endfor %}
-                        </div>
-                        <div class="d-flex justify-content-center flex-wrap gap-2 mb-2">
-                            {% for char in 'asdfghjkl' %}
-                                <button type="submit" name="letter" value="{{ char }}" 
-                                        class="btn btn-{{ 'secondary disabled' if char in guessed_letters else 'outline-light' }} fw-bold fs-5 shadow-sm" 
-                                        style="width: 45px; height: 50px;">
-                                    {{ char | upper }}
-                                </button>
-                            {% endfor %}
-                        </div>
-                        <div class="d-flex justify-content-center flex-wrap gap-2 mb-3">
-                            {% for char in 'zxcvbnm' %}
-                                <button type="submit" name="letter" value="{{ char }}" 
-                                        class="btn btn-{{ 'secondary disabled' if char in guessed_letters else 'outline-light' }} fw-bold fs-5 shadow-sm" 
-                                        style="width: 45px; height: 50px;">
-                                    {{ char | upper }}
-                                </button>
-                            {% endfor %}
-                        </div>
-                    </form>
-                </div>
-                <div class="mt-1">
-                    <a href="/reset" class="btn btn-outline-secondary btn-sm">Main Menu</a>
-                </div>
-            {% endif %}
         {% endif %}
     </div>
 

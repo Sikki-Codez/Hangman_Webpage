@@ -1,7 +1,7 @@
-from flask import Flask, render_template, session, request, redirect, url_for, flash
+from flask import Flask, render_template, session, request, redirect, url_for
 from flask_sqlalchemy import SQLAlchemy
 from dotenv import load_dotenv
-import google.generativeai as genai
+from google import genai 
 import random
 import os
 import json
@@ -9,46 +9,49 @@ import json
 # Load environment variables from the .env file
 load_dotenv()
 
-app = Flask(__name__)
-app.secret_key = "giki_coding_secret" 
+App = Flask(__name__)
+App.secret_key = "giki_coding_secret" 
 
-# Configure Gemini API
-genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
+# Configure the NEW Gemini Client
+try:
+    Client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
+except Exception as ErrorMsg:
+    print(f"Failed to initialize Gemini Client: {ErrorMsg}. Check your .env file!")
+    Client = None
 
 # Database Configuration
-db_url = os.environ.get('DATABASE_URL', 'postgresql+pg8000://postgres:pgadmin4@localhost:5432/Hangman')
-if db_url.startswith("postgres://"):
-    db_url = db_url.replace("postgres://", "postgresql+pg8000://", 1)
+DbUrl = os.environ.get('DATABASE_URL', 'postgresql+pg8000://postgres:pgadmin4@localhost:5432/Hangman')
+if DbUrl.startswith("postgres://"):
+    DbUrl = DbUrl.replace("postgres://", "postgresql+pg8000://", 1)
 
-app.config['SQLALCHEMY_DATABASE_URI'] = db_url
-db = SQLAlchemy(app)
+App.config['SQLALCHEMY_DATABASE_URI'] = DbUrl
+Db = SQLAlchemy(App)
 
-class Word(db.Model):
+class Word(Db.Model):
     __tablename__ = 'words'
-    id = db.Column(db.Integer, primary_key=True)
-    word = db.Column(db.String(100), nullable=False)
-    category = db.Column(db.String(50), nullable=False)
+    Id = Db.Column(Db.Integer, primary_key=True)
+    TargetWord = Db.Column(Db.String(100), nullable=False)
+    Category = Db.Column(Db.String(50), nullable=False)
 
-@app.route('/')
-def index():
+@App.route('/')
+def Index():
     if 'word' not in session:
-        # Fetch all unique categories currently in the database to display
-        available_categories = [cat[0] for cat in db.session.query(Word.category).distinct().all()]
-        return render_template('index.html', show_menu=True, available_categories=available_categories)
+        AvailableCategories = [Cat[0] for Cat in Db.session.query(Word.Category).distinct().all()]
+        return render_template('index.html', show_menu=True, available_categories=AvailableCategories)
 
     if 'streak' not in session:
         session['streak'] = 0
 
-    display_word = ""
-    for char in session['word']:
-        if char == " ":
-            display_word += "&nbsp;&nbsp;" 
-        elif char in session['guessed']:
-            display_word += char + " "
+    DisplayWord = ""
+    for Char in session['word']:
+        if Char == " ":
+            DisplayWord += "&nbsp;&nbsp;" 
+        elif Char in session['guessed']:
+            DisplayWord += Char + " "
         else:
-            display_word += "_ "
+            DisplayWord += "_ "
 
-    if "_" not in display_word.replace("&nbsp;", "") and not session['game_over']:
+    if "_" not in DisplayWord.replace("&nbsp;", "") and not session['game_over']:
         session['win'] = True
         session['game_over'] = True
         session['last_action'] = 'win' 
@@ -60,132 +63,133 @@ def index():
         session['streak'] = 0
         session.modified = True
 
-    sound_to_play = session.pop('last_action', None)
+    SoundToPlay = session.pop('last_action', None)
 
     return render_template('index.html', 
                            show_menu=False,
                            category=session.get('category'),
                            streak=session['streak'],
-                           display=display_word, 
+                           display=DisplayWord, 
                            mistakes=session['mistakes'],
                            game_over=session['game_over'],
                            win=session['win'],
                            secret_word=session['word'],
                            guessed_letters=session['guessed'],
-                           sound_to_play=sound_to_play)
+                           sound_to_play=SoundToPlay)
 
-@app.route('/generate', methods=['POST'])
-def generate():
-    category_name = request.form.get('category_name').strip().title()
-    word_count = int(request.form.get('word_count') or 100)
-    min_len = int(request.form.get('min_len') or 5)
-    max_len = int(request.form.get('max_len') or 20)
+@App.route('/generate', methods=['POST'])
+def Generate():
+    CategoryName = request.form.get('category_name').strip().title()
+    WordCount = int(request.form.get('word_count') or 100)
+    MinLen = int(request.form.get('min_len') or 5)
+    MaxLen = int(request.form.get('max_len') or 20)
 
-    if not category_name:
-        return redirect(url_for('index'))
+    if not CategoryName or not Client:
+        return redirect(url_for('Index'))
 
-    # CHECK 1: Does this category already exist in the database?
-    existing_word = Word.query.filter_by(category=category_name).first()
+    ExistingWord = Word.query.filter_by(Category=CategoryName).first()
     
-    if not existing_word:
-        # If it doesn't exist, call the AI to generate it
+    if not ExistingWord:
         try:
-            model = genai.GenerativeModel('gemini-1.5-flash')
-            prompt = f"""
-            Provide exactly {word_count} unique words related to the category '{category_name}'. 
+            PromptText = f"""
+            Provide exactly {WordCount} unique words related to the category '{CategoryName}'. 
             Rules:
-            1. Every word must be between {min_len} and {max_len} letters long.
+            1. Every word must be between {MinLen} and {MaxLen} letters long.
             2. Only use alphabetical characters (no numbers, spaces, or hyphens).
             3. Output NOTHING EXCEPT a raw JSON array of strings. Do not use markdown blocks.
             Example: ["wordone", "wordtwo", "wordthree"]
             """
             
-            response = model.generate_content(prompt)
-            raw_text = response.text.strip()
+            # Using the NEW SDK syntax and the active model
+            ResponseData = Client.models.generate_content(
+                model='gemini-2.5-flash', 
+                contents=PromptText
+            )
+            RawText = ResponseData.text.strip()
             
-            # Clean up markdown if the AI hallucinated it
-            if raw_text.startswith("```json"):
-                raw_text = raw_text[7:-3].strip()
-            elif raw_text.startswith("```"):
-                raw_text = raw_text[3:-3].strip()
-
-            generated_words = json.loads(raw_text)
-
-            # Clean the data and save to the database
-            valid_words = []
-            for w in generated_words:
-                w = w.lower().strip()
-                if w.isalpha() and min_len <= len(w) <= max_len:
-                    valid_words.append(Word(word=w, category=category_name))
+            # Robust JSON extraction
+            StartIdx = RawText.find('[')
+            EndIdx = RawText.rfind(']') + 1
             
-            if valid_words:
-                db.session.bulk_save_objects(valid_words)
-                db.session.commit()
+            if StartIdx != -1 and EndIdx != 0:
+                JsonString = RawText[StartIdx:EndIdx]
+                GeneratedWords = json.loads(JsonString)
+            else:
+                GeneratedWords = json.loads(RawText)
+
+            ValidWords = []
+            for SingleWord in GeneratedWords:
+                SingleWord = str(SingleWord).lower().strip()
+                if SingleWord.isalpha() and MinLen <= len(SingleWord) <= MaxLen:
+                    ValidWords.append(Word(TargetWord=SingleWord, Category=CategoryName))
+            
+            if ValidWords:
+                Db.session.bulk_save_objects(ValidWords)
+                Db.session.commit()
             else:
                 print("AI failed to generate valid words.")
-                return redirect(url_for('index'))
+                return redirect(url_for('Index'))
 
-        except Exception as e:
-            print(f"Error generating words: {e}")
-            return redirect(url_for('index'))
+        except Exception as ErrorMsg:
+            print(f"Error generating words: {ErrorMsg}")
+            return str(ErrorMsg), 500
 
-    # Start the game with the newly generated (or previously existing) category
-    random_word = Word.query.filter_by(category=category_name).order_by(db.func.random()).first()
+    RandomWord = Word.query.filter_by(Category=CategoryName).order_by(Db.func.random()).first()
     
-    if random_word:
-        session['word'] = random_word.word.lower()
-        session['category'] = category_name
+    if RandomWord:
+        session['word'] = RandomWord.TargetWord.lower()
+        session['category'] = CategoryName
         session['guessed'] = []
         session['mistakes'] = 0
         session['game_over'] = False 
         session['win'] = False
 
-    return redirect(url_for('index'))
+    return redirect(url_for('Index'))
 
-@app.route('/delete_category/<category_name>', methods=['POST'])
-def delete_category(category_name):
-    Word.query.filter_by(category=category_name).delete()
-    db.session.commit()
-    return redirect(url_for('index'))
+@App.route('/delete_category/<CategoryName>', methods=['POST'])
+def DeleteCategory(CategoryName):
+    Word.query.filter_by(Category=CategoryName).delete()
+    Db.session.commit()
+    return redirect(url_for('Index'))
 
-@app.route('/start', methods=['POST'])
-def start():
-    selected_category = request.form.get('category')
-    if selected_category:
-        random_word = Word.query.filter_by(category=selected_category).order_by(db.func.random()).first()
-        if random_word:
-            session['word'] = random_word.word.lower()
-            session['category'] = selected_category
+@App.route('/start', methods=['POST'])
+def Start():
+    SelectedCategory = request.form.get('category')
+    if SelectedCategory:
+        RandomWord = Word.query.filter_by(Category=SelectedCategory).order_by(Db.func.random()).first()
+        if RandomWord:
+            session['word'] = RandomWord.TargetWord.lower()
+            session['category'] = SelectedCategory
             session['guessed'] = []
             session['mistakes'] = 0
             session['game_over'] = False 
             session['win'] = False
             
-    return redirect(url_for('index'))
+    return redirect(url_for('Index'))
 
-@app.route('/guess', methods=['POST'])
-def guess():
+@App.route('/guess', methods=['POST'])
+def Guess():
     if not session.get('game_over'):
-        letter = request.form.get('letter').lower()
-        if letter and letter.isalpha() and letter not in session['guessed']:
-            session['guessed'].append(letter)
-            if letter in session['word']:
+        GuessedLetter = request.form.get('letter').lower()
+        if GuessedLetter and GuessedLetter.isalpha() and GuessedLetter not in session['guessed']:
+            session['guessed'].append(GuessedLetter)
+            if GuessedLetter in session['word']:
                 session['last_action'] = 'correct'
             else:
                 session['mistakes'] += 1
                 session['last_action'] = 'wrong'
             session.modified = True 
-    return redirect(url_for('index'))
+    return redirect(url_for('Index'))
 
-@app.route('/reset')
-def reset():
-    current_streak = session.get('streak', 0)
+@App.route('/reset')
+def Reset():
+    CurrentStreak = session.get('streak', 0)
     session.clear() 
-    session['streak'] = current_streak
-    return redirect(url_for('index'))
+    session['streak'] = CurrentStreak
+    return redirect(url_for('Index'))
 
-with app.app_context():
-    db.create_all()
+with App.app_context():
+    Db.create_all()
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    App.run(debug=True)
